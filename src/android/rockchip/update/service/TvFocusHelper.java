@@ -27,16 +27,22 @@ public class TvFocusHelper {
 	}
 
 	public static void requestFocusOnResume(final Activity activity, final View view) {
-		if (view == null) {
+		requestFocusWhenReady(activity, view);
+	}
+
+	public static void requestFocusWhenReady(final Activity activity, final View view) {
+		if (view == null || activity == null) {
 			return;
 		}
-		view.post(new Runnable() {
+		Runnable focusTask = new Runnable() {
 			@Override
 			public void run() {
 				if (!activity.isFinishing()) {
 					view.requestFocus();
 				}
 			}
-		});
+		};
+		view.post(focusTask);
+		view.postDelayed(focusTask, 200);
 	}
 }
