@@ -20,6 +20,8 @@ public class NotifyDeleteActivity extends Activity {
 	private Context mContext;
 	private RKUpdateService.LocalBinder mBinder = null;
 	private String mPath;
+	private Button mBtnOk;
+	private Button mBtnCancel;
     
     private ServiceConnection mConnection = new ServiceConnection() { 
         public void onServiceConnected(ComponentName className, IBinder service) { 
@@ -72,14 +74,11 @@ public class NotifyDeleteActivity extends Activity {
         
         mContext.bindService(new Intent(mContext, RKUpdateService.class), mConnection, Context.BIND_AUTO_CREATE);
         
-		Button btn_ok = (Button)this.findViewById(R.id.button_ok);
-		Button btn_cancel = (Button)this.findViewById(R.id.button_cancel);
-		btn_ok.setFocusable(false);
-		btn_ok.setClickable(false);
-		btn_cancel.setFocusable(false);
-		btn_cancel.setClickable(false);
+		mBtnOk = (Button)this.findViewById(R.id.button_ok);
+		mBtnCancel = (Button)this.findViewById(R.id.button_cancel);
+		TvFocusHelper.setupDialogButtons(mBtnOk, mBtnCancel);
 		
-		btn_ok.setOnClickListener(new View.OnClickListener() {
+		mBtnOk.setOnClickListener(new View.OnClickListener() {
 			
 			public void onClick(View v) {
 				if(mBinder != null) {
@@ -90,7 +89,7 @@ public class NotifyDeleteActivity extends Activity {
 			}
 		});
 		
-		btn_cancel.setOnClickListener(new View.OnClickListener() {
+		mBtnCancel.setOnClickListener(new View.OnClickListener() {
 			
 			public void onClick(View v) {
 				if(mBinder != null) {
@@ -98,6 +97,12 @@ public class NotifyDeleteActivity extends Activity {
 				}
 			}
 		});
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		TvFocusHelper.requestFocusOnResume(this, mBtnOk);
 	}
 	
 }

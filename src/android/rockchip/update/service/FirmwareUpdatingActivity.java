@@ -119,10 +119,18 @@ public class FirmwareUpdatingActivity extends Activity {
             }
         });
 
+        TvFocusHelper.setupDialogButtons(btn_ok, btn_cancel);
+
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
         filter.addDataScheme("file");
         registerReceiver(mReceiver, filter);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        TvFocusHelper.requestFocusOnResume(this, findViewById(R.id.button_ok));
     }
 
     @Override

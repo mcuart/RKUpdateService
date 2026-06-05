@@ -7,9 +7,11 @@
   android:padding="4dp" 
   android:gravity="center_horizontal">
 
-  <ScrollView 
+  <ScrollView
     android:layout_width="match_parent"
-  	android:layout_height="wrap_content">
+  	android:layout_height="wrap_content"
+  	android:focusable="false"
+  	android:descendantFocusability="blocksDescendants">
   	<LinearLayout 
   	    android:layout_width="match_parent"
   		android:layout_height="wrap_content"
@@ -38,10 +40,18 @@
         <Button style="?android:attr/buttonBarButtonStyle" android:id="@+id/button_cancel"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:foreground="@drawable/tv_focus_frame"
+            android:foregroundGravity="fill"
             android:text="@string/IFIA_btn_no" />
         <Button style="?android:attr/buttonBarButtonStyle" android:id="@+id/button_ok"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:foreground="@drawable/tv_focus_frame"
+            android:foregroundGravity="fill"
             android:text="@string/IFIA_btn_yes" />
     </LinearLayout>
 </LinearLayout>

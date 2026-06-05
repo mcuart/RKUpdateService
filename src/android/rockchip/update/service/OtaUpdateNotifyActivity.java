@@ -27,6 +27,8 @@ public class OtaUpdateNotifyActivity extends Activity {
     private String mDescription = null;
     private RKUpdateService.LocalBinder mBinder;
     private boolean IsChoseOK = false;
+    private Button mBtnOk;
+    private Button mBtnCancel;
 	
     
     private ServiceConnection mConnection = new ServiceConnection() { 
@@ -82,9 +84,10 @@ public class OtaUpdateNotifyActivity extends Activity {
         	Log.d(TAG, "description: " + mDescription);
         }
         
-        Button btn_ok = (Button)this.findViewById(R.id.button_ok);
-		Button btn_cancel = (Button)this.findViewById(R.id.button_cancel);
-		btn_ok.setOnClickListener(new View.OnClickListener() {
+        mBtnOk = (Button)this.findViewById(R.id.button_ok);
+		mBtnCancel = (Button)this.findViewById(R.id.button_cancel);
+		TvFocusHelper.setupDialogButtons(mBtnOk, mBtnCancel);
+		mBtnOk.setOnClickListener(new View.OnClickListener() {
 			
 			public void onClick(View v) {
 				Intent intent = new Intent(mContext, PackageDownloadActivity.class);
@@ -100,18 +103,18 @@ public class OtaUpdateNotifyActivity extends Activity {
 			}
 		});
 		
-		btn_cancel.setOnClickListener(new View.OnClickListener() {
+		mBtnCancel.setOnClickListener(new View.OnClickListener() {
 			
 			public void onClick(View v) {
 				finish();
 			}
 		});
 	}
-	
+
 	@Override
-	protected void onStop() {
-		finish();
-		super.onStop();
+	protected void onResume() {
+		super.onResume();
+		TvFocusHelper.requestFocusOnResume(this, mBtnOk);
 	}
 
 	@Override

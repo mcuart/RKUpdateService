@@ -156,6 +156,10 @@ public class PackageDownloadActivity extends Activity {
         mDownloadRateTV = (TextView)findViewById(R.id.download_info_rate);
         mCompletedTV = (TextView)findViewById(R.id.progress_completed);
         //mTxtState = (TextView)findViewById(R.id.txt_state);
+
+        TvFocusHelper.setupDialogButtons(mBtnControl, mBtnCancel);
+        mBtnControl.setNextFocusLeftId(mBtnCancel.getId());
+        mBtnCancel.setNextFocusRightId(mBtnControl.getId());
         
         //mTxtState.setText("");       
         mBtnControl.setOnClickListener(new View.OnClickListener() {
@@ -173,10 +177,8 @@ public class PackageDownloadActivity extends Activity {
 					}
 					
 					mBtnControl.setText(getString(R.string.starting));
-					mBtnControl.setClickable(false);
-					mBtnControl.setFocusable(false);
-					mBtnCancel.setClickable(false);
-					mBtnCancel.setFocusable(false);
+					mBtnControl.setEnabled(false);
+					mBtnCancel.setEnabled(false);
 				}else if(mState == STATE_STARTED) {
 					//try to stop
 					if(mDownloadProtocol == DOWNLOAD_PROTOCOL_HTTP){
@@ -186,10 +188,8 @@ public class PackageDownloadActivity extends Activity {
 					}
 					
 					mBtnControl.setText(getString(R.string.stoping));
-					mBtnControl.setClickable(false);
-					mBtnControl.setFocusable(false);
-					mBtnCancel.setClickable(false);
-					mBtnCancel.setFocusable(false);
+					mBtnControl.setEnabled(false);
+					mBtnCancel.setEnabled(false);
 				}
 			}
 		});
@@ -234,9 +234,20 @@ public class PackageDownloadActivity extends Activity {
 			mFtpTask.start();
 		}
 		mBtnControl.setText(getString(R.string.starting));
-		mBtnControl.setClickable(false);
-		mBtnControl.setFocusable(false);
+		mBtnControl.setEnabled(false);
+		mBtnCancel.setEnabled(true);
+		TvFocusHelper.requestFocusOnResume(this, mBtnCancel);
 		
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mBtnCancel != null && mBtnCancel.isEnabled()) {
+            TvFocusHelper.requestFocusOnResume(this, mBtnCancel);
+        } else if (mBtnControl != null && mBtnControl.isEnabled()) {
+            TvFocusHelper.requestFocusOnResume(this, mBtnControl);
+        }
     }
     
     private class HTTPdownloadHandler extends Handler {
@@ -263,10 +274,10 @@ public class PackageDownloadActivity extends Activity {
 					//mTxtState.setText("State: download complete");
 					mState = STATE_IDLE;
 					mBtnControl.setText(getString(R.string.start));
-					mBtnControl.setClickable(true);
-					mBtnControl.setFocusable(true);
-					mBtnCancel.setClickable(true);
-					mBtnCancel.setFocusable(true);
+					mBtnControl.setEnabled(true);
+					mBtnCancel.setEnabled(true);
+					TvFocusHelper.enableRemoteFocus(mBtnControl);
+					TvFocusHelper.enableRemoteFocus(mBtnCancel);
 					Intent intent = new Intent();
 		            intent.setClass(mContext, UpdateAndRebootActivity.class);
 		            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -279,10 +290,11 @@ public class PackageDownloadActivity extends Activity {
 					//mTxtState.setText("");
 					mState = STATE_STARTED;
 					mBtnControl.setText(getString(R.string.pause));
-					mBtnControl.setClickable(true);
-					mBtnControl.setFocusable(true);
-					mBtnCancel.setClickable(true);
-					mBtnCancel.setFocusable(true);
+					mBtnControl.setEnabled(true);
+					mBtnCancel.setEnabled(true);
+					TvFocusHelper.enableRemoteFocus(mBtnControl);
+					TvFocusHelper.enableRemoteFocus(mBtnCancel);
+					mBtnControl.requestFocus();
 					setNotificationStrat();
 					showNotification();
 					mWakeLock.acquire();
@@ -309,10 +321,11 @@ public class PackageDownloadActivity extends Activity {
 					mRemainTimeTV.setText("");
 					mDownloadRateTV.setText("");
 					mBtnControl.setText(getString(R.string.retry));
-					mBtnControl.setClickable(true);
-					mBtnControl.setFocusable(true);
-					mBtnCancel.setClickable(true);
-					mBtnCancel.setFocusable(true);
+					mBtnControl.setEnabled(true);
+					mBtnCancel.setEnabled(true);
+					TvFocusHelper.enableRemoteFocus(mBtnControl);
+					TvFocusHelper.enableRemoteFocus(mBtnCancel);
+					mBtnControl.requestFocus();
 					setNotificationPause();
 					showNotification();
 					if(mWakeLock.isHeld()){
