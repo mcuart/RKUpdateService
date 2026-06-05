@@ -13,7 +13,7 @@ LOCAL_PACKAGE_NAME := RKUpdateService
 LOCAL_JNI_SHARED_LIBRARIES := librockchip_update_jni
 LOCAL_REQUIRED_MODULES := librockchip_update_jni
 LOCAL_STATIC_JAVA_LIBRARIES += ftp4j-1.7.2
-LOCAL_STATIC_JAVA_LIBRARIES += http
+LOCAL_JAVA_LIBRARIES += org.apache.http.legacy
 #LOCAL_CERTIFICATE := media
 LOCAL_CERTIFICATE := platform
 LOCAL_PRIVATE_PLATFORM_APIS := 28
@@ -26,7 +26,7 @@ include $(BUILD_PACKAGE)
 
 include $(CLEAR_VARS) 
 
-LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := ftp4j-1.7.2:/libs/ftp4j-1.7.2.jar http:libs/org.apache.http.legacy.jar
+LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := ftp4j-1.7.2:libs/ftp4j-1.7.2.jar
 
 include $(BUILD_MULTI_PREBUILT)
 # ============================================================

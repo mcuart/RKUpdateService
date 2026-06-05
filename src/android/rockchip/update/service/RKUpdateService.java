@@ -3,8 +3,12 @@ package android.rockchip.update.service;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.security.GeneralSecurityException;
 import java.util.Locale;
 
@@ -414,30 +418,24 @@ public class RKUpdateService extends Service {
 						return;
 					}
 
+					boolean foundUpdate = false;
 					for (int i = 0; i < 2; i++) {
+						mUseBackupHost = (i != 0);
 						try {
-							boolean result;
-
-							if (i == 0) {
-								mUseBackupHost = false;
-								result = requestRemoteServerForUpdate(mRemoteURI);
-							} else {
-								mUseBackupHost = true;
-								result = requestRemoteServerForUpdate(mRemoteURIBackup);
+							URI remote = buildRemoteUri(mUseBackupHost);
+							if (remote == null) {
+								Log.e(TAG, "remote uri is null, backup=" + mUseBackupHost);
+								continue;
 							}
-
-							if (result) {
+							if (requestRemoteServerForUpdate(remote)) {
 								LOG("find a remote update package, now start PackageDownloadActivity...");
 								startNotifyActivity();
-							} else {
-								LOG("no find remote update package...");
-								myMakeToast(mContext.getString(R.string.current_new));
+								foundUpdate = true;
+								break;
 							}
-							break;
+							LOG("no find remote update package, backup=" + mUseBackupHost);
 						} catch (Exception e) {
-							// e.printStackTrace();
-							LOG("request remote server error...");
-							myMakeToast(mContext.getString(R.string.current_new));
+							Log.e(TAG, "request remote server error, backup=" + mUseBackupHost, e);
 						}
 
 						try {
@@ -445,6 +443,9 @@ public class RKUpdateService extends Service {
 						} catch (InterruptedException e) {
 							e.printStackTrace();
 						}
+					}
+					if (!foundUpdate) {
+						myMakeToast(mContext.getString(R.string.current_new));
 					}
 					break;
 				case COMMAND_DELETE_UPDATEPACKAGE:
@@ -644,19 +645,45 @@ public class RKUpdateService extends Service {
 	 * ota update
 	 ***********************************************************************************************************************/
 	public static String getRemoteUri() {
-		return "http://" + getRemoteHost() + "/OtaUpdater/android?product=" + getOtaProductName() + "&version="
-				+ getSystemVersion() + "&sn=" + getProductSN() + "&country=" + getCountry() + "&language="
-				+ getLanguage();
+		return buildRemoteUriString(getRemoteHost());
 	}
 
 	public static String getRemoteUriBackup() {
-		return "http://" + getRemoteHostBackup() + "/OtaUpdater/android?product=" + getOtaProductName() + "&version="
-				+ getSystemVersion() + "&sn=" + getProductSN() + "&country=" + getCountry() + "&language="
-				+ getLanguage();
+		return buildRemoteUriString(getRemoteHostBackup());
+	}
+
+	private static String buildRemoteUriString(String host) {
+		try {
+			return "http://" + host + "/OtaUpdater/android"
+					+ "?product=" + URLEncoder.encode(getOtaProductName(), "UTF-8")
+					+ "&version=" + URLEncoder.encode(getSystemVersion(), "UTF-8")
+					+ "&sn=" + URLEncoder.encode(getProductSN(), "UTF-8")
+					+ "&country=" + URLEncoder.encode(getCountry(), "UTF-8")
+					+ "&language=" + URLEncoder.encode(getLanguage(), "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			Log.e(TAG, "buildRemoteUriString failed", e);
+			return null;
+		}
+	}
+
+	private URI buildRemoteUri(boolean backup) {
+		String uriString = backup ? getRemoteUriBackup() : getRemoteUri();
+		if (uriString == null) {
+			return null;
+		}
+		try {
+			return new URI(uriString);
+		} catch (URISyntaxException e) {
+			Log.e(TAG, "invalid remote uri: " + uriString, e);
+			return null;
+		}
 	}
 
 	public static String getRemoteHost() {
 		String remoteHost = SystemProperties.get("ro.product.ota.host");
+		if (remoteHost != null) {
+			remoteHost = remoteHost.trim();
+		}
 		if (remoteHost == null || remoteHost.length() == 0) {
 			remoteHost = "172.16.14.202:2300";
 		}
@@ -665,6 +692,9 @@ public class RKUpdateService extends Service {
 
 	public static String getRemoteHostBackup() {
 		String remoteHost = SystemProperties.get("ro.product.ota.host2");
+		if (remoteHost != null) {
+			remoteHost = remoteHost.trim();
+		}
 		if (remoteHost == null || remoteHost.length() == 0) {
 			remoteHost = "172.16.14.202:2300";
 		}
@@ -673,6 +703,9 @@ public class RKUpdateService extends Service {
 
 	public static String getOtaProductName() {
 		String productName = SystemProperties.get("ro.product.model");
+		if (productName == null) {
+			return "";
+		}
 		if (productName.contains(" ")) {
 			productName = productName.replaceAll(" ", "");
 		}
@@ -713,61 +746,69 @@ public class RKUpdateService extends Service {
 		}
 	}
 
-	private boolean requestRemoteServerForUpdate(URI remote) throws IOException, ClientProtocolException {
+	private boolean requestRemoteServerForUpdate(URI remote) throws IOException {
 		if (remote == null) {
+			LOG("requestRemoteServerForUpdate: remote uri is null");
 			return false;
 		}
 
-		HttpClient httpClient = CustomerHttpClient.getHttpClient();
-		HttpHead httpHead = new HttpHead(remote);
-
-		HttpResponse response = httpClient.execute(httpHead);
-		int statusCode = response.getStatusLine().getStatusCode();
-
-		if (statusCode != 200) {
-			return false;
+		LOG("requestRemoteServerForUpdate: " + remote.toString());
+		if (queryOtaHeaders(remote, "HEAD")) {
+			return parseOtaResponse();
 		}
-		if (DEBUG) {
-			for (Header header : response.getAllHeaders()) {
-				LOG(header.getName() + ":" + header.getValue());
+		LOG("HEAD request failed, retry with GET");
+		if (queryOtaHeaders(remote, "GET")) {
+			return parseOtaResponse();
+		}
+		return false;
+	}
+
+	private boolean queryOtaHeaders(URI remote, String method) throws IOException {
+		HttpURLConnection conn = null;
+		try {
+			conn = (HttpURLConnection) new URL(remote.toString()).openConnection();
+			conn.setRequestMethod(method);
+			conn.setRequestProperty("User-Agent", "rk29sdk/4.0");
+			conn.setConnectTimeout(10000);
+			conn.setReadTimeout(15000);
+			conn.setInstanceFollowRedirects(true);
+
+			int statusCode = conn.getResponseCode();
+			if (statusCode != HttpURLConnection.HTTP_OK) {
+				LOG("queryOtaHeaders(" + method + "): statusCode=" + statusCode);
+				return false;
+			}
+
+			mOtaPackageLength = conn.getHeaderField("OtaPackageLength");
+			mOtaPackageName = conn.getHeaderField("OtaPackageName");
+			mOtaPackageVersion = conn.getHeaderField("OtaPackageVersion");
+			mTargetURI = conn.getHeaderField("OtaPackageUri");
+			mDescription = null;
+
+			String description = conn.getHeaderField("description");
+			if (description != null) {
+				mDescription = new String(description.getBytes("ISO8859_1"), "UTF-8");
+			}
+
+			if (DEBUG) {
+				LOG("OtaPackageLength:" + mOtaPackageLength);
+				LOG("OtaPackageName:" + mOtaPackageName);
+				LOG("OtaPackageVersion:" + mOtaPackageVersion);
+				LOG("OtaPackageUri:" + mTargetURI);
+			}
+
+			return mOtaPackageName != null && mTargetURI != null;
+		} finally {
+			if (conn != null) {
+				conn.disconnect();
 			}
 		}
+	}
 
-		Header[] headLength = response.getHeaders("OtaPackageLength");
-		if (headLength != null && headLength.length > 0) {
-			mOtaPackageLength = headLength[0].getValue();
-		}
-
-		Header[] headName = response.getHeaders("OtaPackageName");
-		if (headName == null) {
-			return false;
-		}
-		if (headName.length > 0) {
-			mOtaPackageName = headName[0].getValue();
-		}
-
-		Header[] headVersion = response.getHeaders("OtaPackageVersion");
-		if (headVersion != null && headVersion.length > 0) {
-			mOtaPackageVersion = headVersion[0].getValue();
-		}
-
-		Header[] headTargetURI = response.getHeaders("OtaPackageUri");
-		if (headTargetURI == null) {
-			return false;
-		}
-		if (headTargetURI.length > 0) {
-			mTargetURI = headTargetURI[0].getValue();
-		}
-
+	private boolean parseOtaResponse() throws IOException {
 		if (mOtaPackageName == null || mTargetURI == null) {
 			LOG("server response format error!");
 			return false;
-		}
-
-		// get description from server response.
-		Header[] headDescription = response.getHeaders("description");
-		if (headDescription != null && headDescription.length > 0) {
-			mDescription = new String(headDescription[0].getValue().getBytes("ISO8859_1"), "UTF-8");
 		}
 
 		if (!mTargetURI.startsWith("http://") && !mTargetURI.startsWith("https://")
@@ -786,6 +827,9 @@ public class RKUpdateService extends Service {
 
 	public static String getSystemVersion() {
 		String version = SystemProperties.get("ro.product.version");
+		if (version != null) {
+			version = version.trim();
+		}
 		if (version == null || version.length() == 0) {
 			version = "1.0.0";
 		}

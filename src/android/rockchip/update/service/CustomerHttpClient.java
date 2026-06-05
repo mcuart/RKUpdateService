@@ -1,5 +1,7 @@
 package android.rockchip.update.service;
 
+import android.util.Log;
+
 import org.apache.http.HttpHost;
 import org.apache.http.HttpVersion;
 import org.apache.http.client.HttpClient;
@@ -18,10 +20,10 @@ import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
-import org.apache.http.protocol.HTTP;
 
 public class CustomerHttpClient {
-	private static final String CHARSET = HTTP.UTF_8;
+	private static final String TAG = "CustomerHttpClient";
+	private static final String CHARSET = "UTF-8";
     private static HttpClient customerHttpClient;
  
     private CustomerHttpClient() {
@@ -33,7 +35,7 @@ public class CustomerHttpClient {
             // 设置一些基本参数
             HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
             HttpProtocolParams.setContentCharset(params, CHARSET);
-            HttpProtocolParams.setUseExpectContinue(params, true);
+            HttpProtocolParams.setUseExpectContinue(params, false);
             HttpProtocolParams.setUserAgent(params, "rk29sdk/4.0");
             
             // 增加最大连接到200
@@ -47,19 +49,26 @@ public class CustomerHttpClient {
   
             // 超时设置
             /* 从连接池中取连接的超时时间 */
-            ConnManagerParams.setTimeout(params, 1000);
+            ConnManagerParams.setTimeout(params, 10000);
             /* 连接超时 */
-            HttpConnectionParams.setConnectionTimeout(params, 2000);
+            HttpConnectionParams.setConnectionTimeout(params, 10000);
             /* 请求超时 */
-            HttpConnectionParams.setSoTimeout(params, 4000);
+            HttpConnectionParams.setSoTimeout(params, 15000);
             
             //重定向设置
             HttpClientParams.setRedirecting(params, true);
  
-            // 设置我们的HttpClient支持HTTP和HTTPS两种模式
+            // Android 11 上 getSocketFactory() 可能返回 null，直接 new 实例
             SchemeRegistry schReg = new SchemeRegistry();
-            schReg.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-            schReg.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
+            schReg.register(new Scheme("http", new PlainSocketFactory(), 80));
+            try {
+                SSLSocketFactory sslFactory = SSLSocketFactory.getSocketFactory();
+                if (sslFactory != null) {
+                    schReg.register(new Scheme("https", sslFactory, 443));
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "register https scheme failed", e);
+            }
  
             
             // 使用线程安全的连接管理来创建HttpClient
